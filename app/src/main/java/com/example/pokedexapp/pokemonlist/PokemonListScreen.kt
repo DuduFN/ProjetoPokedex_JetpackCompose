@@ -1,6 +1,6 @@
 package com.example.pokedexapp.pokemonlist
 
-import androidx.compose.animation.fadeIn
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,27 +16,33 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontWeight.Companion.Bold
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
-import coil.compose.SubcomposeAsyncImage
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.pokedexapp.R
 import com.example.pokedexapp.data.models.PokedexListEntry
 import com.example.pokedexapp.ui.theme.RobotoCondensed
-import com.google.accompanist.coil.CoilImage
+
 
 @Composable
 fun PokemonListScreen(
@@ -115,11 +121,11 @@ fun PokemonList(
     navController: NavController,
     viewModel: PokemonListViewModel = hiltViewModel()
 ) {
-    val pokemonList by remember {viewModel.pokemonList}
-    val endReached by remember {viewModel.endReached}
-    val loadError by remember {viewModel.loadError}
-    val isLoading by remember {viewModel.isLoading}
-    val isSearching by remember {viewModel.isSearching}
+    val pokemonList by remember { viewModel.pokemonList }
+    val endReached by remember { viewModel.endReached }
+    val loadError by remember { viewModel.loadError }
+    val isLoading by remember { viewModel.isLoading }
+    val isSearching by remember { viewModel.isSearching }
 
     LazyColumn(contentPadding = PaddingValues(16.dp)) {
         val itemCount = if (pokemonList.size % 2 == 0) {
@@ -170,12 +176,7 @@ fun PokedexEntry(
             .clip(RoundedCornerShape(10.dp))
             .aspectRatio(1f)
             .background(
-                Brush.verticalGradient(
-                    listOf(
-                        dominantColor,
-                        defaultDominantColor
-                    )
-                )
+                dominantColor,
             )
             .clickable {
                 navController.navigate(
@@ -184,21 +185,31 @@ fun PokedexEntry(
             }
     ) {
         Column {
-            SubcomposeAsyncImage(
+            val painter = rememberAsyncImagePainter(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(entry.imageUrl)
                     .crossfade(true)
-                    /*.target {
-                        viewModel.calcDominantColor(it) { color ->
+                    .build(),
+            )
+
+            if (painter.state is AsyncImagePainter.State.Loading) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colors.primary,
+                    modifier = Modifier.scale(0.5f)
+                )
+            }
+
+            (painter.state as? AsyncImagePainter.State.Success)
+                ?.let { successState ->
+                    LaunchedEffect(Unit) {
+                        val drawable = successState.result.drawable
+                        viewModel.calcDominantColor(drawable) { color ->
                             dominantColor = color
                         }
-                   }*/
-                    .build(),
-                loading ={
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colors.primary,
-                        modifier = Modifier.scale(0.5f))
-                },
+                    }
+                }
+            Image(
+                painter = painter,
                 contentDescription = entry.pokemonName,
                 modifier = Modifier
                     .size(120.dp)
@@ -206,10 +217,20 @@ fun PokedexEntry(
             )
             Text(
                 text = entry.pokemonName,
+                color = Color.Yellow,
                 fontFamily = RobotoCondensed,
+                fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth(),
+                style = TextStyle(
+                shadow = Shadow(
+                    color = Color.Blue,
+                    offset = Offset (x = 8F, y = 2F),
+                    blurRadius = 5F
+                )
+                )
             )
         }
     }
@@ -242,6 +263,7 @@ fun PokedexRow(
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
+
 @Composable
 fun RetrySection(
     error: String,
@@ -254,7 +276,7 @@ fun RetrySection(
             onClick = { onRetry() },
             modifier = Modifier.align(CenterHorizontally)
         ) {
-            Text(text = "Retry")
+            Text(text = "Recarregar")
         }
     }
 }
